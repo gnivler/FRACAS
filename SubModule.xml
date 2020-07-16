@@ -1,7 +1,7 @@
 <Module>
-  <Name value="FRACKAS"/>
-  <Id value="FRACKAS"/>
-  <Version value="v1.0.0"/>
+  <Name value="FRACAS"/>
+  <Id value="FRACAS"/>
+  <Version value="v1.0.1"/>
   <SingleplayerModule value="true"/>
   <MultiplayerModule value="false"/>
   <DependedModules>
@@ -13,9 +13,9 @@
   </DependedModules>
   <SubModules>
     <SubModule>
-      <Name value="FRACKAS"/>
-      <DLLName value="FRACKAS.dll"/>
-      <SubModuleClassType value="FRACKAS.Mod"/>
+      <Name value="FRACAS"/>
+      <DLLName value="FRACAS.dll"/>
+      <SubModuleClassType value="FRACAS.Mod"/>
       <Tags>
         <Tag key="DedicatedServerType" value="none" />
         <Tag key="IsNoRenderModeElement" value="false" />
