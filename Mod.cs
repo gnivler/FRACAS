@@ -29,7 +29,7 @@ namespace FRACAS
             Debug
         }
 
-        private const LogLevel logging = LogLevel.Debug;
+        private const LogLevel logging = LogLevel.Disabled;
         private readonly Harmony harmony = new Harmony("ca.gnivler.bannerlord.FRACAS");
         private static readonly Random Rng = new Random();
         private static List<EquipmentElement> equipmentItems;
