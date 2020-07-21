@@ -5,6 +5,7 @@ using TaleWorlds.MountAndBlade;
 using static FRACAS.Mod;
 using static FRACAS.Helpers;
 // ReSharper disable UnusedType.Global
+// ReSharper disable UnusedMember.Local
 
 // ReSharper disable InconsistentNaming
 
@@ -24,15 +25,15 @@ namespace FRACAS.Patches
                     return false;
                 }
 
-                Log(new string('=', 50), Mod.LogLevel.Debug);
-                foreach (TournamentTeam team in ____match.Teams)
+                Log(new string('=', 50), LogLevel.Debug);
+                foreach (var team in ____match.Teams)
                 {
-                    foreach (TournamentParticipant participant in team.Participants)
+                    foreach (var participant in team.Participants)
                     {
                         participant.MatchEquipment = BuildViableEquipmentSet();
                         for (var i = 0; i < 4; i++)
                         {
-                            Log("  " + participant.MatchEquipment[i], Mod.LogLevel.Debug);
+                            Log("  " + participant.MatchEquipment[i], LogLevel.Debug);
                         }
 
                         AccessTools.Method(typeof(SandBox.TournamentFightMissionController), "AddRandomClothes")

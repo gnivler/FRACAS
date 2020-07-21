@@ -23,6 +23,7 @@ namespace FRACAS
             var haveBow = false;
             for (var i = 0; i < 4; i++)
             {
+                // maybe... if (i == 3 && !gear[3].IsEmpty)?
                 if (!gear[0].IsEmpty && !gear[1].IsEmpty && !gear[2].IsEmpty && !gear[3].IsEmpty)
                 {
                     break;
@@ -90,18 +91,18 @@ namespace FRACAS
                 var mount = Mounts.GetRandomElement();
                 var mountId = mount.StringId.ToLower();
                 gear[10] = new EquipmentElement(mount);
-                Log(mountId, Mod.LogLevel.Debug);
+                Log(mountId, LogLevel.Debug);
                 if (mountId.Contains("horse"))
                 {
                     gear[11] = new EquipmentElement(Saddles.Where(x =>
                         !x.Name.ToLower().Contains("camel")).GetRandomElement());
-                    Log(gear[11].ToString(), Mod.LogLevel.Debug);
+                    Log(gear[11].ToString(), LogLevel.Debug);
                 }
                 else if (mount.StringId.ToLower().Contains("camel"))
                 {
                     gear[11] = new EquipmentElement(Saddles.Where(x =>
                         x.Name.ToLower().Contains("camel")).GetRandomElement());
-                    Log(gear[11].ToString(), Mod.LogLevel.Debug);
+                    Log(gear[11].ToString(), LogLevel.Debug);
                 }
             }
 

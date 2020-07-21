@@ -2,10 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Security.Authentication;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
-using TaleWorlds.CampaignSystem.CharacterQueries;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 using static FRACAS.Helpers;
@@ -21,6 +19,12 @@ namespace FRACAS.Patches
         {
             internal static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator ilg)
             {
+                if (!Mod.ModSettings.ArmyMode)
+                {
+                    return instructions;
+                }
+
+                Mod.Log("ArmyMode enabled", Mod.LogLevel.Debug);
                 var codes = instructions.ToList();
                 var target = codes.FindIndex(c =>
                     c.opcode == OpCodes.Call &&
@@ -38,21 +42,26 @@ namespace FRACAS.Patches
                     // load the iterator, and `this` Agent
                     new CodeInstruction(OpCodes.Ldloc_1),
                     new CodeInstruction(OpCodes.Ldarg_0),
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetMissionWeapon))),
+                    new CodeInstruction(OpCodes.Call, AccessTools.Method(
+                        typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetMissionWeapon))),
                     // dupe it for storing and the following Call
                     new CodeInstruction(OpCodes.Dup),
                     new CodeInstruction(OpCodes.Stloc_S, 10),
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetWeaponData), new[] {typeof(MissionWeapon)})),
+                    new CodeInstruction(OpCodes.Call, AccessTools.Method(
+                        typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetWeaponData), new[] {typeof(MissionWeapon)})),
                     // store where the method is expecting it, repeat
                     new CodeInstruction(OpCodes.Stloc_2),
                     new CodeInstruction(OpCodes.Ldloc_S, 10),
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetWeaponStatsData))),
+                    new CodeInstruction(OpCodes.Call, AccessTools.Method(
+                        typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetWeaponStatsData))),
                     new CodeInstruction(OpCodes.Stloc_3),
                     new CodeInstruction(OpCodes.Ldloc_S, 10),
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetAmmoWeaponData))),
+                    new CodeInstruction(OpCodes.Call, AccessTools.Method(
+                        typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetAmmoWeaponData))),
                     new CodeInstruction(OpCodes.Stloc_S, 4),
                     new CodeInstruction(OpCodes.Ldloc_S, 10),
-                    new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetAmmoWeaponStatsData))),
+                    new CodeInstruction(OpCodes.Call, AccessTools.Method(
+                        typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetAmmoWeaponStatsData))),
                     new CodeInstruction(OpCodes.Stloc_S, 5),
                 };
 
@@ -74,36 +83,47 @@ namespace FRACAS.Patches
                 var hasBow = false;
                 CheckForBowsOrShields(agent, ref hasBow, ref hasShield);
                 var item = EquipmentItems.GetRandomElement().Item;
-                MissionWeapon missionWeapon = default;
-                if (item.ItemType == ItemObject.ItemTypeEnum.Bow || item.ItemType == ItemObject.ItemTypeEnum.Crossbow)
+                SelectValidItem(index, agent, hasBow, hasShield,
+                    agent.Character?.CurrentFormationClass == FormationClass.Ranged ||
+                    agent.Character?.CurrentFormationClass == FormationClass.Skirmisher ||
+                    agent.Character?.CurrentFormationClass == FormationClass.HorseArcher);
+                var missionWeapon = new MissionWeapon(item, Hero.MainHero.ClanBanner);
+                Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[index] = missionWeapon;
+                return missionWeapon;
+            }
+
+            private static void SelectValidItem(int index, TaleWorlds.MountAndBlade.Agent agent, bool hasBow, bool hasShield, bool isArcher)
+            {
+                ItemObject item;
+                if (isArcher && !hasBow)
                 {
-                    // need room for ammo, so don't add a bow in the last slot
-                    if (!hasBow && index < 3)
+                    // we must get a bow for the archers
+                    hasBow = true;
+                    var bow = Rng.Next(0, 2) == 0;
+                    MissionWeapon missionWeapon;
+
+                    if (bow)
                     {
-                        Mod.Log("Adding bow at index " + index, Mod.LogLevel.Debug);
-                        hasBow = true;
+                        item = EquipmentItems.Select(x => x.Item).Where(x =>
+                            x.ItemType == ItemObject.ItemTypeEnum.Bow).GetRandomElement();
                         missionWeapon = new MissionWeapon(item, Hero.MainHero.ClanBanner);
-                        if (missionWeapon.PrimaryItem.ItemType == ItemObject.ItemTypeEnum.Bow)
-                        {
-                            Mod.Log("Adding arrows", Mod.LogLevel.Debug);
-                            var ammo = new MissionWeapon(Arrows.GetRandomElement(), Hero.MainHero.ClanBanner);
-                            Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[3] = ammo;
-                        }
-                        else
-                        {
-                            Mod.Log("Adding bolts", Mod.LogLevel.Debug);
-                            var ammo = new MissionWeapon(Bolts.GetRandomElement(), Hero.MainHero.ClanBanner);
-                            Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[3] = ammo;
-                        }
                     }
                     else
                     {
-                        // we got a bow we can't use, so take something else
                         item = EquipmentItems.Select(x => x.Item).Where(x =>
-                                x.ItemType != ItemObject.ItemTypeEnum.Bow &&
-                                x.ItemType != ItemObject.ItemTypeEnum.Crossbow)
-                            .GetRandomElement();
+                            x.ItemType == ItemObject.ItemTypeEnum.Crossbow).GetRandomElement();
+                        missionWeapon = new MissionWeapon(item, Hero.MainHero.ClanBanner);
                     }
+
+                    AddAmmo(agent, missionWeapon);
+                }
+                else
+                {
+                    // not an archer so get something else
+                    item = EquipmentItems.Where(x =>
+                            x.Item.ItemType != ItemObject.ItemTypeEnum.Bow &&
+                            x.Item.ItemType != ItemObject.ItemTypeEnum.Crossbow)
+                        .GetRandomElement().Item;
                 }
 
                 if (item.ItemType == ItemObject.ItemTypeEnum.Shield &&
@@ -123,10 +143,22 @@ namespace FRACAS.Patches
                     // pick from subset
                     item = selection.GetRandomElement();
                 }
+            }
 
-                missionWeapon = new MissionWeapon(item, Banner.CreateOneColoredEmptyBanner(0));
-                Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[index] = missionWeapon;
-                return missionWeapon;
+            private static void AddAmmo(TaleWorlds.MountAndBlade.Agent agent, MissionWeapon missionWeapon)
+            {
+                if (missionWeapon.PrimaryItem.ItemType == ItemObject.ItemTypeEnum.Bow)
+                {
+                    Mod.Log("Adding arrows", Mod.LogLevel.Debug);
+                    var ammo = new MissionWeapon(Arrows.GetRandomElement(), Hero.MainHero.ClanBanner);
+                    Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[3] = ammo;
+                }
+                else
+                {
+                    Mod.Log("Adding bolts", Mod.LogLevel.Debug);
+                    var ammo = new MissionWeapon(Bolts.GetRandomElement(), Hero.MainHero.ClanBanner);
+                    Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[3] = ammo;
+                }
             }
 
             private static void CheckForBowsOrShields(TaleWorlds.MountAndBlade.Agent agent, ref bool hasBow, ref bool hasShield)

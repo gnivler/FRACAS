@@ -1,15 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Reflection;
 using HarmonyLib;
-using SandBox;
+using Newtonsoft.Json;
 using SandBox.View.Map;
-using TaleWorlds.CampaignSystem;
-using TaleWorlds.CampaignSystem.SandBox.Source.TournamentGames;
-using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
-using static FRACAS.Helpers;
 
 // ReSharper disable ClassNeverInstantiated.Global   
 // ReSharper disable UnusedMember.Global    
@@ -30,7 +25,8 @@ namespace FRACAS
             Debug
         }
 
-        private const LogLevel logging = LogLevel.Debug;
+        private const LogLevel logging = LogLevel.Disabled;
+        internal static Settings ModSettings;
         private readonly Harmony harmony = new Harmony("ca.gnivler.bannerlord.FRACAS");
 
         internal static void Log(object input, LogLevel logLevel)
@@ -41,11 +37,25 @@ namespace FRACAS
             }
         }
 
+        internal class Settings
+        {
+            public bool ArmyMode = false;
+        }
+
         protected override void OnSubModuleLoad()
         {
             Log("Startup " + DateTime.Now.ToShortTimeString(), LogLevel.Warning);
-            harmony.PatchAll(Assembly.GetExecutingAssembly());
+            try
+            {
+                 ModSettings = JsonConvert.DeserializeObject<Settings>(File.ReadAllText("..\\..\\Modules\\FRACAS\\mod_settings.json"));
+            }
+            catch (Exception ex)
+            {
+                ModSettings = new Settings();
+                Log(ex, LogLevel.Error);
+            }
 
+            harmony.PatchAll(Assembly.GetExecutingAssembly());
             var original = AccessTools.Method(typeof(Agent), "EquipItemsFromSpawnEquipment");
             var transpiler = AccessTools.Method(typeof(Patches.Agent.AgentEquipItemsFromSpawnEquipmentPatch),
                 nameof(Patches.Agent.AgentEquipItemsFromSpawnEquipmentPatch.Transpiler));
