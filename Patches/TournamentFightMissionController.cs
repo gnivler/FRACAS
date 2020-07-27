@@ -25,7 +25,7 @@ namespace FRACAS.Patches
                     return false;
                 }
 
-                Log(new string('=', 50), LogLevel.Debug);
+                Log(new string('=', 50));
                 foreach (var team in ____match.Teams)
                 {
                     foreach (var participant in team.Participants)
@@ -33,7 +33,7 @@ namespace FRACAS.Patches
                         participant.MatchEquipment = BuildViableEquipmentSet();
                         for (var i = 0; i < 4; i++)
                         {
-                            Log("  " + participant.MatchEquipment[i], LogLevel.Debug);
+                            Log("  " + participant.MatchEquipment[i]);
                         }
 
                         AccessTools.Method(typeof(SandBox.TournamentFightMissionController), "AddRandomClothes")

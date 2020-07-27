@@ -91,18 +91,18 @@ namespace FRACAS
                 var mount = Mounts.GetRandomElement();
                 var mountId = mount.StringId.ToLower();
                 gear[10] = new EquipmentElement(mount);
-                Log(mountId, LogLevel.Debug);
+                Log(mountId);
                 if (mountId.Contains("horse"))
                 {
                     gear[11] = new EquipmentElement(Saddles.Where(x =>
                         !x.Name.ToLower().Contains("camel")).GetRandomElement());
-                    Log(gear[11].ToString(), LogLevel.Debug);
+                    Log(gear[11].ToString());
                 }
                 else if (mount.StringId.ToLower().Contains("camel"))
                 {
                     gear[11] = new EquipmentElement(Saddles.Where(x =>
                         x.Name.ToLower().Contains("camel")).GetRandomElement());
-                    Log(gear[11].ToString(), LogLevel.Debug);
+                    Log(gear[11].ToString());
                 }
             }
 

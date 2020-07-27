@@ -17,24 +17,12 @@ namespace FRACAS
 {
     public class Mod : MBSubModuleBase
     {
-        public enum LogLevel
-        {
-            Disabled,
-            Warning,
-            Error,
-            Debug
-        }
-
-        private const LogLevel logging = LogLevel.Disabled;
         internal static Settings ModSettings;
         private readonly Harmony harmony = new Harmony("ca.gnivler.bannerlord.FRACAS");
 
-        internal static void Log(object input, LogLevel logLevel)
+        internal static void Log(object input)
         {
-            if (logging >= logLevel)
-            {
-                FileLog.Log($"[FRACAS] {input ?? "null"}");
-            }
+            //   FileLog.Log($"[FRACAS] {input ?? "null"}");
         }
 
         internal class Settings
@@ -44,15 +32,15 @@ namespace FRACAS
 
         protected override void OnSubModuleLoad()
         {
-            Log("Startup " + DateTime.Now.ToShortTimeString(), LogLevel.Warning);
+            Log("Startup " + DateTime.Now.ToShortTimeString());
             try
             {
-                 ModSettings = JsonConvert.DeserializeObject<Settings>(File.ReadAllText("..\\..\\Modules\\FRACAS\\mod_settings.json"));
+                ModSettings = JsonConvert.DeserializeObject<Settings>(File.ReadAllText("..\\..\\Modules\\FRACAS\\mod_settings.json"));
             }
             catch (Exception ex)
             {
                 ModSettings = new Settings();
-                Log(ex, LogLevel.Error);
+                Log(ex);
             }
 
             harmony.PatchAll(Assembly.GetExecutingAssembly());

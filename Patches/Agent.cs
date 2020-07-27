@@ -24,7 +24,7 @@ namespace FRACAS.Patches
                     return instructions;
                 }
 
-                Mod.Log("ArmyMode enabled", Mod.LogLevel.Debug);
+                Mod.Log("ArmyMode enabled");
                 var codes = instructions.ToList();
                 var target = codes.FindIndex(c =>
                     c.opcode == OpCodes.Call &&
@@ -83,10 +83,11 @@ namespace FRACAS.Patches
                 var hasBow = false;
                 CheckForBowsOrShields(agent, ref hasBow, ref hasShield);
                 var item = EquipmentItems.GetRandomElement().Item;
+                var formationClass = agent.Character?.GetFormationClass(agent.Origin.BattleCombatant);
                 SelectValidItem(index, agent, hasBow, hasShield,
-                    agent.Character?.CurrentFormationClass == FormationClass.Ranged ||
-                    agent.Character?.CurrentFormationClass == FormationClass.Skirmisher ||
-                    agent.Character?.CurrentFormationClass == FormationClass.HorseArcher);
+                    formationClass == FormationClass.Ranged ||
+                    formationClass == FormationClass.Skirmisher ||
+                    formationClass == FormationClass.HorseArcher);
                 var missionWeapon = new MissionWeapon(item, Hero.MainHero.ClanBanner);
                 Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[index] = missionWeapon;
                 return missionWeapon;
@@ -149,13 +150,13 @@ namespace FRACAS.Patches
             {
                 if (missionWeapon.PrimaryItem.ItemType == ItemObject.ItemTypeEnum.Bow)
                 {
-                    Mod.Log("Adding arrows", Mod.LogLevel.Debug);
+                    Mod.Log("Adding arrows");
                     var ammo = new MissionWeapon(Arrows.GetRandomElement(), Hero.MainHero.ClanBanner);
                     Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[3] = ammo;
                 }
                 else
                 {
-                    Mod.Log("Adding bolts", Mod.LogLevel.Debug);
+                    Mod.Log("Adding bolts");
                     var ammo = new MissionWeapon(Bolts.GetRandomElement(), Hero.MainHero.ClanBanner);
                     Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[3] = ammo;
                 }
@@ -186,12 +187,12 @@ namespace FRACAS.Patches
 
             private static WeaponData GetWeaponData(MissionWeapon missionWeapon)
             {
-                return missionWeapon.GetWeaponData();
+                return missionWeapon.GetWeaponData(false);
             }
 
             private static WeaponData GetAmmoWeaponData(MissionWeapon missionWeapon)
             {
-                return missionWeapon.GetAmmoWeaponData();
+                return missionWeapon.GetAmmoWeaponData(false);
             }
 
             private static WeaponStatsData[] GetWeaponStatsData(MissionWeapon missionWeapon)
