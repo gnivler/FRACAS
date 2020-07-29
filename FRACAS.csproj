@@ -193,7 +193,7 @@
     <ItemGroup>
         <Compile Include="Helpers.cs" />
         <Compile Include="Mod.cs" />
-        <Compile Include="Patches\Agent.cs" />
+        <Compile Include="Patches\AgentPatches.cs" />
         <Compile Include="Patches\MapScreen.cs" />
         <Compile Include="Patches\TournamentFightMissionController.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />

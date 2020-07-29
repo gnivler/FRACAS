@@ -1,10 +1,11 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using FRACAS.Patches;
 using HarmonyLib;
 using Newtonsoft.Json;
-using SandBox.View.Map;
 using TaleWorlds.MountAndBlade;
+using MapScreen = SandBox.View.Map.MapScreen;
 
 // ReSharper disable ClassNeverInstantiated.Global   
 // ReSharper disable UnusedMember.Global    
@@ -22,7 +23,7 @@ namespace FRACAS
 
         internal static void Log(object input)
         {
-            //   FileLog.Log($"[FRACAS] {input ?? "null"}");
+            //FileLog.Log($"[FRACAS] {input ?? "null"}");
         }
 
         internal class Settings
@@ -45,8 +46,8 @@ namespace FRACAS
 
             harmony.PatchAll(Assembly.GetExecutingAssembly());
             var original = AccessTools.Method(typeof(Agent), "EquipItemsFromSpawnEquipment");
-            var transpiler = AccessTools.Method(typeof(Patches.Agent.AgentEquipItemsFromSpawnEquipmentPatch),
-                nameof(Patches.Agent.AgentEquipItemsFromSpawnEquipmentPatch.Transpiler));
+            var transpiler = AccessTools.Method(typeof(AgentPatches.AgentEquipItemsFromSpawnEquipmentPatch),
+                nameof(AgentPatches.AgentEquipItemsFromSpawnEquipmentPatch.Transpiler));
             harmony.Patch(original, null, null, new HarmonyMethod(transpiler));
 
             original = AccessTools.Method(typeof(MapScreen), "OnInitialize");

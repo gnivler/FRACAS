@@ -13,7 +13,7 @@ using static FRACAS.Helpers;
 
 namespace FRACAS.Patches
 {
-    public static class Agent
+    public static class AgentPatches
     {
         public class AgentEquipItemsFromSpawnEquipmentPatch
         {
@@ -24,13 +24,12 @@ namespace FRACAS.Patches
                     return instructions;
                 }
 
-                Mod.Log("ArmyMode enabled");
                 var codes = instructions.ToList();
                 var target = codes.FindIndex(c =>
                     c.opcode == OpCodes.Call &&
                     (MethodInfo) c.operand == AccessTools.Method(typeof(MissionWeapon), "GetWeaponData"));
-                target -= 6;
-                for (int i = target; i < target + 32; i++)
+                target -= 7;
+                for (int i = target; i < target + 34; i++)
                 {
                     codes[i].opcode = OpCodes.Nop;
                     codes[i].operand = null;
@@ -66,11 +65,11 @@ namespace FRACAS.Patches
                 };
 
                 codes.InsertRange(target, stack);
-                //codes.Do(x => Mod.Log($"{x.opcode,-15}{x.operand}", Mod.LogLevel.Debug));
+                codes.Do(x => Mod.Log($"{x.opcode,-15}{x.operand}"));
                 return codes.AsEnumerable();
             }
 
-            private static MissionWeapon GetMissionWeapon(int index, TaleWorlds.MountAndBlade.Agent agent)
+            private static MissionWeapon GetMissionWeapon(int index, Agent agent)
             {
                 if (Hero.All.Contains(((CharacterObject) agent.Character)?.HeroObject) ||
                     !agent.Equipment[3].IsEmpty && index == 3)
@@ -82,28 +81,27 @@ namespace FRACAS.Patches
                 var hasShield = false;
                 var hasBow = false;
                 CheckForBowsOrShields(agent, ref hasBow, ref hasShield);
-                var item = EquipmentItems.GetRandomElement().Item;
                 var formationClass = agent.Character?.GetFormationClass(agent.Origin.BattleCombatant);
-                SelectValidItem(index, agent, hasBow, hasShield,
+                var item = SelectValidItem(index, agent, hasBow, hasShield,
                     formationClass == FormationClass.Ranged ||
-                    formationClass == FormationClass.Skirmisher ||
+                    formationClass == FormationClass.Skirmisher,
                     formationClass == FormationClass.HorseArcher);
                 var missionWeapon = new MissionWeapon(item, Hero.MainHero.ClanBanner);
                 Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[index] = missionWeapon;
                 return missionWeapon;
             }
 
-            private static void SelectValidItem(int index, TaleWorlds.MountAndBlade.Agent agent, bool hasBow, bool hasShield, bool isArcher)
+            private static ItemObject SelectValidItem(int index, Agent agent, bool hasBow, bool hasShield, bool isArcher, bool isHorseArcher)
             {
                 ItemObject item;
-                if (isArcher && !hasBow)
+                if (isArcher || isHorseArcher && !hasBow)
                 {
                     // we must get a bow for the archers
                     hasBow = true;
                     var bow = Rng.Next(0, 2) == 0;
                     MissionWeapon missionWeapon;
 
-                    if (bow)
+                    if (bow || isHorseArcher)
                     {
                         item = EquipmentItems.Select(x => x.Item).Where(x =>
                             x.ItemType == ItemObject.ItemTypeEnum.Bow).GetRandomElement();
@@ -144,9 +142,11 @@ namespace FRACAS.Patches
                     // pick from subset
                     item = selection.GetRandomElement();
                 }
+
+                return item;
             }
 
-            private static void AddAmmo(TaleWorlds.MountAndBlade.Agent agent, MissionWeapon missionWeapon)
+            private static void AddAmmo(Agent agent, MissionWeapon missionWeapon)
             {
                 if (missionWeapon.PrimaryItem.ItemType == ItemObject.ItemTypeEnum.Bow)
                 {
@@ -162,7 +162,7 @@ namespace FRACAS.Patches
                 }
             }
 
-            private static void CheckForBowsOrShields(TaleWorlds.MountAndBlade.Agent agent, ref bool hasBow, ref bool hasShield)
+            private static void CheckForBowsOrShields(Agent agent, ref bool hasBow, ref bool hasShield)
             {
                 for (var i = 0; i < 4; i++)
                 {
