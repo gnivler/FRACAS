@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.SandBox.Source.TournamentGames;
 using TaleWorlds.Core;
 using static FRACAS.Mod;
 
@@ -23,8 +26,7 @@ namespace FRACAS
             var haveBow = false;
             for (var i = 0; i < 4; i++)
             {
-                // maybe... if (i == 3 && !gear[3].IsEmpty)?
-                if (!gear[0].IsEmpty && !gear[1].IsEmpty && !gear[2].IsEmpty && !gear[3].IsEmpty)
+                if (i == 3 && !gear[3].IsEmpty)
                 {
                     break;
                 }
@@ -91,22 +93,94 @@ namespace FRACAS
                 var mount = Mounts.GetRandomElement();
                 var mountId = mount.StringId.ToLower();
                 gear[10] = new EquipmentElement(mount);
-                Log(mountId);
-                if (mountId.Contains("horse"))
-                {
-                    gear[11] = new EquipmentElement(Saddles.Where(x =>
-                        !x.Name.ToLower().Contains("camel")).GetRandomElement());
-                    Log(gear[11].ToString());
-                }
-                else if (mount.StringId.ToLower().Contains("camel"))
+                if (mountId.Contains("camel"))
                 {
                     gear[11] = new EquipmentElement(Saddles.Where(x =>
                         x.Name.ToLower().Contains("camel")).GetRandomElement());
-                    Log(gear[11].ToString());
+                }
+                else
+                {
+                    gear[11] = new EquipmentElement(Saddles.Where(x =>
+                        !x.Name.ToLower().Contains("camel")).GetRandomElement());
                 }
             }
 
             return gear.Clone();
+        }
+
+        internal static float SumTeamEquipmentValue(TournamentTeam team)
+        {
+            float result = default;
+            try
+            {
+                foreach (var participant in team.Participants)
+                {
+                    for (var i = 0; i < 4; i++)
+                    {
+                        result += participant.MatchEquipment[i].Item.Tierf;
+                    }
+
+                    if (participant.MatchEquipment[10].IsEmpty)
+                    {
+                        return result;
+                    }
+
+                    result += participant.MatchEquipment[10].Item.Tierf;
+
+                    if (participant.MatchEquipment[11].IsEmpty)
+                    {
+                        return result;
+                    }
+
+                    result += participant.MatchEquipment[11].Item.Tierf;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log(ex);
+            }
+
+            return result;
+        }
+
+        internal static void EquipParticipant(
+            SandBox.TournamentFightMissionController __instance,
+            CultureObject ____culture,
+            TournamentTeam team,
+            Dictionary<TournamentTeam, int> mountMap,
+            TournamentParticipant participant)
+        {
+            var equipment = BuildViableEquipmentSet();
+            Log(new string('-', 50));
+            LogWeaponsAndMount(equipment);
+            if (!equipment[10].IsEmpty)
+            {
+                mountMap[team]++;
+            }
+
+            participant.MatchEquipment = equipment;
+            AccessTools.Method(typeof(SandBox.TournamentFightMissionController), "AddRandomClothes")
+                .Invoke(__instance, new object[] {____culture, participant});
+        }
+
+        private static void LogWeaponsAndMount(Equipment equipment)
+        {
+            Log(equipment[0]);
+            Log(equipment[1]);
+            Log(equipment[2]);
+            Log(equipment[3]);
+            if (equipment[10].IsEmpty)
+            {
+                return;
+            }
+
+            Log(equipment[10]);
+            if (equipment[11].IsEmpty)
+            {
+                return;
+            }
+
+            Log(equipment[11]);
         }
     }
 }

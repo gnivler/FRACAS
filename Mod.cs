@@ -29,6 +29,8 @@ namespace FRACAS
         internal class Settings
         {
             public bool ArmyMode = false;
+            public bool TournamentBalance = true;
+            public int DifferenceThreshold = 3;
         }
 
         protected override void OnSubModuleLoad()

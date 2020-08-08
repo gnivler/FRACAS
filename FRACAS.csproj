@@ -202,6 +202,7 @@
       <None Include="packages.config" />
     </ItemGroup>
     <ItemGroup>
+      <Content Include="mod_settings.json" />
       <Content Include="SubModule.xml" />
     </ItemGroup>
     <PropertyGroup>

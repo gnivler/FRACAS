@@ -1,9 +1,16 @@
+using System;
+using System.CodeDom;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.SandBox.Source.TournamentGames;
+using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 using static FRACAS.Mod;
 using static FRACAS.Helpers;
+
 // ReSharper disable UnusedType.Global
 // ReSharper disable UnusedMember.Local
 
@@ -25,24 +32,59 @@ namespace FRACAS.Patches
                     return false;
                 }
 
+                var qualityMap = new Dictionary<TournamentTeam, float>();
+                var mountMap = new Dictionary<TournamentTeam, int>();
+                Log("");
                 Log(new string('=', 50));
+                Log("NEW MATCH");
                 foreach (var team in ____match.Teams)
                 {
-                    foreach (var participant in team.Participants)
+                    if (!ModSettings.TournamentBalance)
                     {
-                        participant.MatchEquipment = BuildViableEquipmentSet();
-                        for (var i = 0; i < 4; i++)
+                        foreach (var participant in team.Participants)
                         {
-                            Log("  " + participant.MatchEquipment[i]);
+                            EquipParticipant(__instance, ____culture, team, mountMap, participant);
                         }
 
-                        AccessTools.Method(typeof(SandBox.TournamentFightMissionController), "AddRandomClothes")
-                            .Invoke(__instance, new object[] {____culture, participant});
+                        continue;
                     }
+
+                    mountMap.Add(team, 0);
+                    foreach (var participant in team.Participants)
+                    {
+                        EquipParticipant(__instance, ____culture, team, mountMap, participant);
+                    }
+
+                    qualityMap.Add(team, SumTeamEquipmentValue(team));
+
+                    // use the first team's random build value as the baseline
+                    // act after the first team is populated, re-rolling to find a suitable delta
+                    if (qualityMap.Keys.Count > 1)
+                    {
+                        while (Math.Abs(qualityMap.Values.ElementAt(0) - qualityMap[team]) > ModSettings.DifferenceThreshold ||
+                               mountMap.Values.ElementAt(0) != mountMap[team])
+                        {
+                            Log("RE-ROLLING TEAM");
+                            mountMap[team] = 0;
+                            foreach (var participant in team.Participants)
+                            {
+                                EquipParticipant(__instance, ____culture, team, mountMap, participant);
+                            }
+
+                            qualityMap[team] = SumTeamEquipmentValue(team);
+                        }
+                    }
+                }
+
+                Log(new string('-', 50));
+                for (var i = 0; i < ____match.Teams.Count(); i++)
+                {
+                    Log($"Team{i + 1} value {qualityMap.Values.ElementAt(i):F2}");
                 }
 
                 return false;
             }
+
         }
     }
 }
