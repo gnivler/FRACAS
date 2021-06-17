@@ -1,9 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using HarmonyLib;
-using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 using static FRACAS.Helpers;
@@ -15,8 +15,12 @@ namespace FRACAS.Patches
 {
     public static class AgentPatches
     {
+        // ArmyMode
         public class AgentEquipItemsFromSpawnEquipmentPatch
         {
+            private static readonly AccessTools.FieldRef<MissionEquipment, MissionWeapon[]> MissionWeaponRef =
+                AccessTools.FieldRefAccess<MissionEquipment, MissionWeapon[]>("_weaponSlots");
+
             internal static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator ilg)
             {
                 if (!Mod.ModSettings.ArmyMode)
@@ -47,7 +51,7 @@ namespace FRACAS.Patches
                     new CodeInstruction(OpCodes.Dup),
                     new CodeInstruction(OpCodes.Stloc_S, 10),
                     new CodeInstruction(OpCodes.Call, AccessTools.Method(
-                        typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetWeaponData), new[] {typeof(MissionWeapon)})),
+                        typeof(AgentEquipItemsFromSpawnEquipmentPatch), nameof(GetWeaponData))),
                     // store where the method is expecting it, repeat
                     new CodeInstruction(OpCodes.Stloc_2),
                     new CodeInstruction(OpCodes.Ldloc_S, 10),
@@ -65,14 +69,15 @@ namespace FRACAS.Patches
                 };
 
                 codes.InsertRange(target, stack);
-                codes.Do(x => Mod.Log($"{x.opcode,-15}{x.operand}"));
+                //codes.Do(x => Mod.Log($"{x.opcode,-15}{x.operand}"));
                 return codes.AsEnumerable();
             }
 
             private static MissionWeapon GetMissionWeapon(int index, Agent agent)
             {
-                if (Hero.All.Contains(((CharacterObject) agent.Character)?.HeroObject) ||
-                    !agent.Equipment[3].IsEmpty && index == 3)
+                if (agent != null &&
+                    (agent.IsHero ||
+                     !agent.Equipment[3].IsEmpty && index == 3))
                 {
                     return agent.Equipment[index];
                 }
@@ -86,61 +91,68 @@ namespace FRACAS.Patches
                     formationClass == FormationClass.Ranged ||
                     formationClass == FormationClass.Skirmisher,
                     formationClass == FormationClass.HorseArcher);
-                var missionWeapon = new MissionWeapon(item, Hero.MainHero.ClanBanner);
-                Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[index] = missionWeapon;
+                var missionWeapon = new MissionWeapon(item, null, agent.Origin.Banner);
+                MissionWeaponRef(agent.Equipment)[index] = missionWeapon;
                 return missionWeapon;
             }
 
             private static ItemObject SelectValidItem(int index, Agent agent, bool hasBow, bool hasShield, bool isArcher, bool isHorseArcher)
             {
-                ItemObject item;
-                if (isArcher || isHorseArcher && !hasBow)
+                ItemObject item = default;
+                try
                 {
-                    // we must get a bow for the archers
-                    hasBow = true;
-                    var bow = Rng.Next(0, 2) == 0;
-                    MissionWeapon missionWeapon;
-
-                    if (bow || isHorseArcher)
+                    if ((isArcher || isHorseArcher) && !hasBow)
                     {
-                        item = EquipmentItems.Select(x => x.Item).Where(x =>
-                            x.ItemType == ItemObject.ItemTypeEnum.Bow).GetRandomElement();
-                        missionWeapon = new MissionWeapon(item, Hero.MainHero.ClanBanner);
+                        // we must get a bow for the archers
+                        hasBow = true;
+                        var bow = Rng.Next(0, 2) == 0;
+                        MissionWeapon missionWeapon;
+
+                        if (bow || isHorseArcher)
+                        {
+                            item = EquipmentItems.Where(x =>
+                                x.ItemType == ItemObject.ItemTypeEnum.Bow).ToList().GetRandomElement();
+                            missionWeapon = new MissionWeapon(item, null, agent.Origin.Banner);
+                        }
+                        else
+                        {
+                            item = EquipmentItems.Where(x =>
+                                x.ItemType == ItemObject.ItemTypeEnum.Crossbow).ToList().GetRandomElement();
+                            missionWeapon = new MissionWeapon(item, null, agent.Origin.Banner);
+                        }
+
+                        AddAmmo(agent, missionWeapon);
                     }
                     else
                     {
-                        item = EquipmentItems.Select(x => x.Item).Where(x =>
-                            x.ItemType == ItemObject.ItemTypeEnum.Crossbow).GetRandomElement();
-                        missionWeapon = new MissionWeapon(item, Hero.MainHero.ClanBanner);
+                        // not an archer so get something else
+                        item = EquipmentItems.Where(x =>
+                                x.ItemType != ItemObject.ItemTypeEnum.Bow &&
+                                x.ItemType != ItemObject.ItemTypeEnum.Crossbow)
+                            .ToList().GetRandomElement();
                     }
 
-                    AddAmmo(agent, missionWeapon);
-                }
-                else
-                {
-                    // not an archer so get something else
-                    item = EquipmentItems.Where(x =>
-                            x.Item.ItemType != ItemObject.ItemTypeEnum.Bow &&
-                            x.Item.ItemType != ItemObject.ItemTypeEnum.Crossbow)
-                        .GetRandomElement().Item;
-                }
-
-                if (item.ItemType == ItemObject.ItemTypeEnum.Shield &&
-                    hasShield)
-                {
-                    // we can't take a shield, make a subset for next filter
-                    var selection = EquipmentItems.Select(x => x.Item).Where(x =>
-                        x.ItemType != ItemObject.ItemTypeEnum.Shield);
-                    // we also can't take a bow now
-                    if (hasBow || index > 2)
+                    if (item.ItemType == ItemObject.ItemTypeEnum.Shield &&
+                        hasShield)
                     {
-                        selection = selection.Where(x =>
-                            x.ItemType != ItemObject.ItemTypeEnum.Bow &&
-                            x.ItemType != ItemObject.ItemTypeEnum.Crossbow);
-                    }
+                        // we can't take a shield, make a subset for next filter
+                        var selection = EquipmentItems.Where(x =>
+                            x.ItemType != ItemObject.ItemTypeEnum.Shield);
+                        // we also can't take a bow now
+                        if (hasBow || index > 2)
+                        {
+                            selection = selection.Where(x =>
+                                x.ItemType != ItemObject.ItemTypeEnum.Bow &&
+                                x.ItemType != ItemObject.ItemTypeEnum.Crossbow);
+                        }
 
-                    // pick from subset
-                    item = selection.GetRandomElement();
+                        // pick from subset
+                        item = selection.ToList().GetRandomElement();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Mod.Log(ex);
                 }
 
                 return item;
@@ -148,16 +160,16 @@ namespace FRACAS.Patches
 
             private static void AddAmmo(Agent agent, MissionWeapon missionWeapon)
             {
-                if (missionWeapon.PrimaryItem.ItemType == ItemObject.ItemTypeEnum.Bow)
+                if (missionWeapon.Item.ItemType == ItemObject.ItemTypeEnum.Bow)
                 {
                     Mod.Log("Adding arrows");
-                    var ammo = new MissionWeapon(Arrows.GetRandomElement(), Hero.MainHero.ClanBanner);
+                    var ammo = new MissionWeapon(Arrows.GetRandomElement(), null, agent.Origin.Banner);
                     Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[3] = ammo;
                 }
                 else
                 {
                     Mod.Log("Adding bolts");
-                    var ammo = new MissionWeapon(Bolts.GetRandomElement(), Hero.MainHero.ClanBanner);
+                    var ammo = new MissionWeapon(Bolts.GetRandomElement(), null, agent.Origin.Banner);
                     Traverse.Create(agent.Equipment).Field<MissionWeapon[]>("_weaponSlots").Value[3] = ammo;
                 }
             }
@@ -171,7 +183,7 @@ namespace FRACAS.Patches
                         break;
                     }
 
-                    var agentItemType = agent.Equipment[i].PrimaryItem.ItemType;
+                    var agentItemType = agent.Equipment[i].Item.ItemType;
                     if (agentItemType == ItemObject.ItemTypeEnum.Bow || agentItemType == ItemObject.ItemTypeEnum.Crossbow)
                     {
                         hasBow = true;
@@ -190,14 +202,14 @@ namespace FRACAS.Patches
                 return missionWeapon.GetWeaponData(false);
             }
 
-            private static WeaponData GetAmmoWeaponData(MissionWeapon missionWeapon)
-            {
-                return missionWeapon.GetAmmoWeaponData(false);
-            }
-
             private static WeaponStatsData[] GetWeaponStatsData(MissionWeapon missionWeapon)
             {
                 return missionWeapon.GetWeaponStatsData();
+            }
+
+            private static WeaponData GetAmmoWeaponData(MissionWeapon missionWeapon)
+            {
+                return missionWeapon.GetAmmoWeaponData(false);
             }
 
             private static WeaponStatsData[] GetAmmoWeaponStatsData(MissionWeapon missionWeapon)

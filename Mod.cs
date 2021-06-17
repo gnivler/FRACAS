@@ -5,8 +5,8 @@ using FRACAS.Patches;
 using HarmonyLib;
 using Newtonsoft.Json;
 using TaleWorlds.MountAndBlade;
-using MapScreen = SandBox.View.Map.MapScreen;
-
+using TaleWorlds.TwoDimension;
+// ReSharper disable FieldCanBeMadeReadOnly.Global 
 // ReSharper disable ClassNeverInstantiated.Global   
 // ReSharper disable UnusedMember.Global    
 // ReSharper disable UnusedMember.Local
@@ -45,16 +45,16 @@ namespace FRACAS
                 ModSettings = new Settings();
                 Log(ex);
             }
+            finally
+            {
+                ModSettings.DifferenceThreshold = Mathf.Clamp(ModSettings.DifferenceThreshold, 1, ModSettings.DifferenceThreshold);
+            }
 
             harmony.PatchAll(Assembly.GetExecutingAssembly());
             var original = AccessTools.Method(typeof(Agent), "EquipItemsFromSpawnEquipment");
             var transpiler = AccessTools.Method(typeof(AgentPatches.AgentEquipItemsFromSpawnEquipmentPatch),
                 nameof(AgentPatches.AgentEquipItemsFromSpawnEquipmentPatch.Transpiler));
             harmony.Patch(original, null, null, new HarmonyMethod(transpiler));
-
-            original = AccessTools.Method(typeof(MapScreen), "OnInitialize");
-            var postfix = AccessTools.Method(typeof(Patches.MapScreen.MapScreenOnInitializePatch), nameof(Patches.MapScreen.MapScreenOnInitializePatch.Postfix));
-            harmony.Patch(original, null, new HarmonyMethod(postfix));
         }
     }
 }

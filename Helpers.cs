@@ -7,16 +7,18 @@ using TaleWorlds.CampaignSystem.SandBox.Source.TournamentGames;
 using TaleWorlds.Core;
 using static FRACAS.Mod;
 
+// ReSharper disable InconsistentNaming
+
 namespace FRACAS
 {
     public static class Helpers
     {
-        internal static List<EquipmentElement> EquipmentItems;
-        internal static List<ItemObject> Arrows;
-        internal static List<ItemObject> Bolts;
-        internal static List<ItemObject> Mounts;
-        internal static List<ItemObject> Saddles;
-        internal static readonly Random Rng = new Random();
+        internal static List<ItemObject> EquipmentItems = new();
+        internal static List<ItemObject> Arrows = new();
+        internal static List<ItemObject> Bolts = new();
+        internal static List<ItemObject> Mounts = new();
+        internal static List<ItemObject> Saddles = new();
+        internal static readonly Random Rng = new ();
 
         // builds a set of 4 weapons that won't include more than 1 bow or shield, nor any lack of ammo
         internal static Equipment BuildViableEquipmentSet()
@@ -34,16 +36,16 @@ namespace FRACAS
                 var randomElement = EquipmentItems.GetRandomElement();
 
                 if (!gear[3].IsEmpty && i == 3 &&
-                    (randomElement.Item.ItemType == ItemObject.ItemTypeEnum.Bow ||
-                     randomElement.Item.ItemType == ItemObject.ItemTypeEnum.Crossbow))
+                    (randomElement.ItemType == ItemObject.ItemTypeEnum.Bow ||
+                     randomElement.ItemType == ItemObject.ItemTypeEnum.Crossbow))
                 {
                     randomElement = EquipmentItems.Where(x =>
-                        x.Item.ItemType != ItemObject.ItemTypeEnum.Bow &&
-                        x.Item.ItemType != ItemObject.ItemTypeEnum.Crossbow).GetRandomElement();
+                        x.ItemType != ItemObject.ItemTypeEnum.Bow &&
+                        x.ItemType != ItemObject.ItemTypeEnum.Crossbow).ToList().GetRandomElement();
                 }
 
-                if (randomElement.Item.ItemType == ItemObject.ItemTypeEnum.Bow ||
-                    randomElement.Item.ItemType == ItemObject.ItemTypeEnum.Crossbow)
+                if (randomElement.ItemType == ItemObject.ItemTypeEnum.Bow ||
+                    randomElement.ItemType == ItemObject.ItemTypeEnum.Crossbow)
                 {
                     if (i < 3)
                     {
@@ -54,13 +56,13 @@ namespace FRACAS
                         }
 
                         haveBow = true;
-                        gear[i] = randomElement;
-                        if (randomElement.Item.ItemType == ItemObject.ItemTypeEnum.Bow)
+                        gear[i] = new EquipmentElement(randomElement);
+                        if (randomElement.ItemType == ItemObject.ItemTypeEnum.Bow)
                         {
                             gear[3] = new EquipmentElement(Arrows.ToList()[Rng.Next(0, Arrows.Count)]);
                         }
 
-                        if (randomElement.Item.ItemType == ItemObject.ItemTypeEnum.Crossbow)
+                        if (randomElement.ItemType == ItemObject.ItemTypeEnum.Crossbow)
                         {
                             gear[3] = new EquipmentElement(Bolts.ToList()[Rng.Next(0, Bolts.Count)]);
                         }
@@ -69,11 +71,11 @@ namespace FRACAS
                     }
 
                     randomElement = EquipmentItems.Where(x =>
-                        x.Item.ItemType != ItemObject.ItemTypeEnum.Bow &&
-                        x.Item.ItemType != ItemObject.ItemTypeEnum.Crossbow).GetRandomElement();
+                        x.ItemType != ItemObject.ItemTypeEnum.Bow &&
+                        x.ItemType != ItemObject.ItemTypeEnum.Crossbow).ToList().GetRandomElement();
                 }
 
-                if (randomElement.Item.ItemType == ItemObject.ItemTypeEnum.Shield)
+                if (randomElement.ItemType == ItemObject.ItemTypeEnum.Shield)
                 {
                     if (haveShield)
                     {
@@ -84,7 +86,7 @@ namespace FRACAS
                     haveShield = true;
                 }
 
-                gear[i] = randomElement;
+                gear[i] = new EquipmentElement(randomElement);
             }
 
             // 20% chance to get a mount
@@ -96,12 +98,12 @@ namespace FRACAS
                 if (mountId.Contains("camel"))
                 {
                     gear[11] = new EquipmentElement(Saddles.Where(x =>
-                        x.Name.ToLower().Contains("camel")).GetRandomElement());
+                        x.Name.ToLower().Contains("camel")).ToList().GetRandomElement());
                 }
                 else
                 {
                     gear[11] = new EquipmentElement(Saddles.Where(x =>
-                        !x.Name.ToLower().Contains("camel")).GetRandomElement());
+                        !x.Name.ToLower().Contains("camel")).ToList().GetRandomElement());
                 }
             }
 
