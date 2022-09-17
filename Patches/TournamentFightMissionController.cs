@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
-using TaleWorlds.CampaignSystem;
-using TaleWorlds.CampaignSystem.SandBox.Source.TournamentGames;
+using SandBox.Tournaments.MissionLogics;
+using TaleWorlds.CampaignSystem.TournamentGames;
 using TaleWorlds.MountAndBlade;
-using static FRACAS.Mod;
+using static FRACAS.SubModule;
 using static FRACAS.Helpers;
 
 // ReSharper disable UnusedType.Global
@@ -14,12 +14,11 @@ using static FRACAS.Helpers;
 
 namespace FRACAS.Patches
 {
-    [HarmonyPatch(typeof(SandBox.TournamentFightMissionController), "PrepareForMatch")]
+    [HarmonyPatch(typeof(TournamentFightMissionController), "PrepareForMatch")]
     public class TournamentFightMissionControllerPrepareForMatchPatch
     {
         // assembly copy rewrite so teams are not identical
-        private static bool Prefix(SandBox.TournamentFightMissionController __instance,
-            TournamentMatch ____match, CultureObject ____culture)
+        private static bool Prefix(TournamentMatch ____match)
         {
             if (GameNetwork.IsClientOrReplay)
             {
@@ -33,20 +32,10 @@ namespace FRACAS.Patches
             Log("NEW MATCH");
             foreach (var team in ____match.Teams)
             {
-                if (!ModSettings.TournamentBalance)
-                {
-                    foreach (var participant in team.Participants)
-                    {
-                        EquipParticipant(__instance, ____culture, team, mountMap, participant);
-                    }
-
-                    continue;
-                }
-
                 mountMap.Add(team, 0);
                 foreach (var participant in team.Participants)
                 {
-                    EquipParticipant(__instance, ____culture, team, mountMap, participant);
+                    EquipParticipant(team, mountMap, participant);
                 }
 
                 qualityMap.Add(team, SumTeamEquipmentValue(team));
@@ -55,14 +44,14 @@ namespace FRACAS.Patches
                 // act after the first team is populated, re-rolling to find a suitable delta
                 if (qualityMap.Keys.Count > 1)
                 {
-                    while (Math.Abs(qualityMap.Values.ElementAt(0) - qualityMap[team]) > ModSettings.DifferenceThreshold ||
-                           mountMap.Values.ElementAt(0) != mountMap[team])
+                    while (Math.Abs(qualityMap.Values.ElementAt(0) - qualityMap[team]) > 3
+                           || mountMap.Values.ElementAt(0) != mountMap[team])
                     {
                         Log("RE-ROLLING TEAM");
                         mountMap[team] = 0;
                         foreach (var participant in team.Participants)
                         {
-                            EquipParticipant(__instance, ____culture, team, mountMap, participant);
+                            EquipParticipant(team, mountMap, participant);
                         }
 
                         qualityMap[team] = SumTeamEquipmentValue(team);
